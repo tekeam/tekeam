@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
+from urllib import request as urlrequest
 
 from flask import Flask, redirect, render_template, request, send_file, send_from_directory, url_for
 from reportlab.lib import colors
@@ -26,6 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent
 BACKUP_DIR = BASE_DIR / "backup"
 IMAGES_DIR = BASE_DIR / "images"
 DATA_FILE = BACKUP_DIR / "data.json"
+FONTS_DIR = BASE_DIR / "fonts"
 
 COMPANY_INFO = {
     "name": "یکتا پخش",
@@ -48,15 +50,21 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
 
 FONT_CANDIDATES = [
+    str(FONTS_DIR / "Vazirmatn-Regular.ttf"),
     "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
     "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
 ]
 
+FONT_DOWNLOADS = {
+    "Vazirmatn-Regular.ttf": "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/ttf/Vazirmatn-Regular.ttf",
+}
+
 
 def ensure_directories() -> None:
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    FONTS_DIR.mkdir(parents=True, exist_ok=True)
     if not DATA_FILE.exists():
         save_data({"categories": [], "products": [], "next_category_id": 1, "next_product_id": 1})
 
@@ -77,12 +85,23 @@ def reshape_text(text: str) -> str:
     if not text:
         return ""
     if arabic_reshaper is None or get_display is None:
-        return text
+        return "".join(reversed(text))
     reshaped = arabic_reshaper.reshape(text)
     return get_display(reshaped)
 
 
+def ensure_fonts() -> None:
+    for font_name, url in FONT_DOWNLOADS.items():
+        font_path = FONTS_DIR / font_name
+        if not font_path.exists():
+            try:
+                urlrequest.urlretrieve(url, font_path)
+            except OSError:
+                continue
+
+
 def register_font() -> str:
+    ensure_fonts()
     for candidate in FONT_CANDIDATES:
         if os.path.exists(candidate):
             pdfmetrics.registerFont(TTFont("Persian", candidate))
@@ -93,13 +112,11 @@ def register_font() -> str:
 @app.route("/")
 def index():
     data = load_data()
-    categories = sorted(data["categories"], key=lambda item: item["name"])
+    categories = data["categories"]
     products = data["products"]
     products_by_category = {}
     for product in products:
         products_by_category.setdefault(product["category_id"], []).append(product)
-    for product_list in products_by_category.values():
-        product_list.sort(key=lambda item: item["name"])
     return render_template(
         "index.html",
         categories=categories,
@@ -165,15 +182,31 @@ def toggle_product(product_id: int):
     return redirect(url_for("index"))
 
 
+@app.route("/categories/<int:category_id>/delete", methods=["POST"])
+def delete_category(category_id: int):
+    data = load_data()
+    data["categories"] = [category for category in data["categories"] if category["id"] != category_id]
+    remaining_products = []
+    for product in data["products"]:
+        if product["category_id"] != category_id:
+            remaining_products.append(product)
+            continue
+        if product.get("image"):
+            image_path = IMAGES_DIR / product["image"]
+            if image_path.exists():
+                image_path.unlink()
+    data["products"] = remaining_products
+    save_data(data)
+    return redirect(url_for("index"))
+
+
 def build_pdf(filepath: Path) -> None:
     data = load_data()
-    categories = sorted(data["categories"], key=lambda item: item["name"])
+    categories = data["categories"]
     products = [item for item in data["products"] if item.get("active", True)]
     products_by_category = {}
     for product in products:
         products_by_category.setdefault(product["category_id"], []).append(product)
-    for product_list in products_by_category.values():
-        product_list.sort(key=lambda item: item["name"])
 
     font_name = register_font()
     styles = getSampleStyleSheet()
@@ -186,6 +219,7 @@ def build_pdf(filepath: Path) -> None:
             fontSize=16,
             textColor=THEME["gold"],
             spaceAfter=6,
+            wordWrap="RTL",
         )
     )
     styles.add(
@@ -197,6 +231,7 @@ def build_pdf(filepath: Path) -> None:
             fontSize=10,
             leading=14,
             textColor=THEME["white"],
+            wordWrap="RTL",
         )
     )
     styles.add(
@@ -208,6 +243,7 @@ def build_pdf(filepath: Path) -> None:
             fontSize=9,
             leading=12,
             textColor=THEME["gold_light"],
+            wordWrap="RTL",
         )
     )
 

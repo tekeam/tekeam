@@ -20,29 +20,59 @@
     </header>
 
     <main>
-      <section class="panel">
-        <h2>افزودن دسته بندی جدید</h2>
+      <section class="panel form-panel">
+        <div class="panel-header">
+          <h2>افزودن دسته بندی جدید</h2>
+          <p>ابتدا دسته‌بندی‌ها را تعریف کنید تا محصولات به ترتیب زیر هم قرار بگیرند.</p>
+        </div>
         <form method="post" action="{{ url_for('add_category') }}" class="form">
-          <input type="text" name="name" placeholder="نام دسته بندی" required />
+          <label class="field">
+            <span>نام دسته بندی</span>
+            <input type="text" name="name" placeholder="مثال: غذای خشک" required />
+          </label>
           <button type="submit" class="btn">ثبت دسته بندی</button>
         </form>
       </section>
 
-      <section class="panel">
-        <h2>افزودن محصول جدید</h2>
+      <section class="panel form-panel">
+        <div class="panel-header">
+          <h2>افزودن محصول جدید</h2>
+          <p>همه جزئیات محصول را وارد کنید تا در خروجی PDF حرفه‌ای نمایش داده شود.</p>
+        </div>
         <form method="post" action="{{ url_for('add_product') }}" enctype="multipart/form-data" class="form grid">
-          <input type="text" name="name" placeholder="نام محصول" required />
-          <select name="category_id" required>
-            <option value="">انتخاب دسته بندی</option>
-            {% for category in categories %}
-            <option value="{{ category.id }}">{{ category.name }}</option>
-            {% endfor %}
-          </select>
-          <input type="text" name="price_partner" placeholder="قیمت همکار" />
-          <input type="text" name="price_retail" placeholder="قیمت مصرف کننده" />
-          <input type="text" name="carton_count" placeholder="تعداد در کارتن" />
-          <textarea name="description" placeholder="توضیحات محصول" rows="3"></textarea>
-          <input type="file" name="image" accept="image/*" />
+          <label class="field">
+            <span>نام محصول</span>
+            <input type="text" name="name" placeholder="مثال: غذای گربه رویال کنین" required />
+          </label>
+          <label class="field">
+            <span>دسته بندی</span>
+            <select name="category_id" required>
+              <option value="">انتخاب دسته بندی</option>
+              {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field">
+            <span>قیمت همکار</span>
+            <input type="text" name="price_partner" placeholder="مثال: ۱,۵۰۰,۰۰۰ تومان" />
+          </label>
+          <label class="field">
+            <span>قیمت مصرف کننده</span>
+            <input type="text" name="price_retail" placeholder="مثال: ۱,۸۰۰,۰۰۰ تومان" />
+          </label>
+          <label class="field">
+            <span>تعداد در کارتن</span>
+            <input type="text" name="carton_count" placeholder="مثال: ۱۲ عدد" />
+          </label>
+          <label class="field field-wide">
+            <span>توضیحات محصول</span>
+            <textarea name="description" placeholder="توضیحات محصول" rows="3"></textarea>
+          </label>
+          <label class="field">
+            <span>تصویر محصول</span>
+            <input type="file" name="image" accept="image/*" />
+          </label>
           <button type="submit" class="btn">ثبت محصول</button>
         </form>
       </section>
@@ -51,7 +81,12 @@
         <h2>لیست دسته بندی ها و محصولات</h2>
         {% for category in categories %}
         <div class="category">
-          <h3>{{ category.name }}</h3>
+          <div class="category-header">
+            <h3>{{ category.name }}</h3>
+            <form method="post" action="{{ url_for('delete_category', category_id=category.id) }}">
+              <button type="submit" class="btn ghost small">حذف دسته بندی</button>
+            </form>
+          </div>
           <div class="products">
             {% for product in products_by_category.get(category.id, []) %}
             <div class="product-card {% if not product.active %}inactive{% endif %}">
