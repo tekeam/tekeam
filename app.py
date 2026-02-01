@@ -274,6 +274,20 @@ def build_pdf(filepath: Path) -> None:
             wordWrap="RTL",
         )
     )
+    styles.add(
+        ParagraphStyle(
+            name="PersianHighlight",
+            parent=styles["BodyText"],
+            alignment=TA_RIGHT,
+            fontName=font_body,
+            fontSize=10,
+            leading=14,
+            textColor=THEME["gold_light"],
+            backColor=colors.HexColor("#1a1a1a"),
+            borderPadding=(6, 6, 6, 6),
+            wordWrap="RTL",
+        )
+    )
 
     doc = SimpleDocTemplate(
         str(filepath),
@@ -288,6 +302,8 @@ def build_pdf(filepath: Path) -> None:
         canvas.saveState()
         canvas.setFillColor(THEME["black"])
         canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+        canvas.setFillColor(THEME["gold"])
+        canvas.rect(0, A4[1] - 2.2 * cm, A4[0], 0.12 * cm, fill=1, stroke=0)
         canvas.setFillColor(THEME["gold_light"])
         canvas.setFont(font_body, 8)
         timestamp = datetime.now().strftime("%Y/%m/%d %H:%M")
@@ -308,6 +324,11 @@ def build_pdf(filepath: Path) -> None:
     info_text = "<br/>".join(reshape_text(line) for line in info_lines)
     story.append(Paragraph(info_text, styles["PersianSmall"]))
     story.append(Spacer(1, 12))
+    summary_text = reshape_text(
+        f"تعداد دسته‌بندی‌ها: {len(categories)} | مجموع محصولات فعال: {len(products)}"
+    )
+    story.append(Paragraph(summary_text, styles["PersianHighlight"]))
+    story.append(Spacer(1, 8))
     story.append(Paragraph(reshape_text("به‌روزرسانی موجودی بر اساس آخرین ثبت سیستم"), styles["PersianSmall"]))
     story.append(Spacer(1, 14))
 
@@ -316,10 +337,62 @@ def build_pdf(filepath: Path) -> None:
             return Paragraph(reshape_text("تصویر نامعتبر"), styles["PersianSmall"])
         try:
             image_reader = ImageReader(str(image_path))
-            image_reader.getSize()
-            return Image(str(image_path), width=2.8 * cm, height=2.8 * cm)
+            width, height = image_reader.getSize()
+            max_size = 2.8 * cm
+            scale = min(max_size / width, max_size / height)
+            return Image(str(image_path), width=width * scale, height=height * scale)
         except OSError:
             return Paragraph(reshape_text("تصویر نامعتبر"), styles["PersianSmall"])
+
+    def build_products_table(product_list: list[dict]) -> Table:
+        header_row = [
+            Paragraph(reshape_text("تصویر"), styles["PersianSmall"]),
+            Paragraph(reshape_text("شرح محصول"), styles["PersianSmall"]),
+            Paragraph(reshape_text("قیمت‌ها"), styles["PersianSmall"]),
+            Paragraph(reshape_text("کارتن"), styles["PersianSmall"]),
+        ]
+        rows = [header_row]
+        for item in product_list:
+            image_path = IMAGES_DIR / item["image"] if item.get("image") else None
+            image_flowable = ""
+            if image_path:
+                image_flowable = build_image_flowable(image_path)
+            name = reshape_text(item["name"])
+            description = reshape_text(item.get("description", ""))
+            description_line = f"<br/>{description}" if description else ""
+            name_paragraph = Paragraph(f"{name}{description_line}", styles["PersianBody"])
+
+            price_partner = reshape_text(f"قیمت همکار: {item.get('price_partner', '-')}")
+            price_retail = reshape_text(f"قیمت مصرف کننده: {item.get('price_retail', '-')}")
+            price_paragraph = Paragraph(f"{price_partner}<br/>{price_retail}", styles["PersianSmall"])
+
+            carton_count = reshape_text(f"تعداد در کارتن: {item.get('carton_count', '-')}")
+            carton_paragraph = Paragraph(carton_count, styles["PersianSmall"])
+
+            rows.append([image_flowable, name_paragraph, price_paragraph, carton_paragraph])
+
+        table = Table(
+            rows,
+            colWidths=[3 * cm, 7.5 * cm, 4 * cm, 3 * cm],
+            hAlign="RIGHT",
+        )
+        table.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), THEME["white"]),
+                    ("GRID", (0, 0), (-1, -1), 0.3, THEME["gold"]),
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1b1b1b")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), THEME["gold_light"]),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#111111"), colors.HexColor("#0d0d0d")]),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                    ("TOPPADDING", (0, 0), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+        return table
 
     for category in categories:
         category_name = reshape_text(category["name"])
@@ -330,54 +403,8 @@ def build_pdf(filepath: Path) -> None:
             story.append(Spacer(1, 8))
             continue
 
-        for product in products:
-            image_path = IMAGES_DIR / product["image"] if product.get("image") else None
-            image_flowable = ""
-            if image_path:
-                image_flowable = build_image_flowable(image_path)
-            name = reshape_text(product["name"])
-            description = reshape_text(product.get("description", ""))
-            description_line = f"<br/>{description}" if description else ""
-            name_paragraph = Paragraph(f"{name}{description_line}", styles["PersianBody"])
-
-            price_partner = reshape_text(f"قیمت همکار: {product.get('price_partner', '-')}")
-            price_retail = reshape_text(f"قیمت مصرف کننده: {product.get('price_retail', '-')}")
-            price_paragraph = Paragraph(f"{price_partner}<br/>{price_retail}", styles["PersianSmall"])
-
-            carton_count = reshape_text(f"تعداد در کارتن: {product.get('carton_count', '-')}")
-            carton_paragraph = Paragraph(carton_count, styles["PersianSmall"])
-
-            header_row = [
-                Paragraph(reshape_text("تصویر"), styles["PersianSmall"]),
-                Paragraph(reshape_text("شرح محصول"), styles["PersianSmall"]),
-                Paragraph(reshape_text("قیمت‌ها"), styles["PersianSmall"]),
-                Paragraph(reshape_text("کارتن"), styles["PersianSmall"]),
-            ]
-            row = [[image_flowable, name_paragraph, price_paragraph, carton_paragraph]]
-            table = Table(
-                [header_row] + row,
-                colWidths=[3 * cm, 7.5 * cm, 4 * cm, 3 * cm],
-                hAlign="RIGHT",
-            )
-            table.setStyle(
-                TableStyle(
-                    [
-                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                        ("TEXTCOLOR", (0, 0), (-1, -1), THEME["white"]),
-                        ("GRID", (0, 0), (-1, -1), 0.3, THEME["gold"]),
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111111")),
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1b1b1b")),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), THEME["gold_light"]),
-                        ("LINEBELOW", (0, 0), (-1, -1), 0.5, THEME["gold_light"]),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                        ("TOPPADDING", (0, 0), (-1, -1), 6),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-                    ]
-                )
-            )
-            story.append(table)
-            story.append(Spacer(1, 10))
+        story.append(build_products_table(products))
+        story.append(Spacer(1, 12))
         story.append(Spacer(1, 12))
 
     doc.build(story, onFirstPage=draw_background, onLaterPages=draw_background)
