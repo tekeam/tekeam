@@ -1,10 +1,37 @@
-- 👋 Hi, I’m @tekeam
-- 👀 I’m interested in ...
-- 🌱 I’m currently learning ...
-- 💞️ I’m looking to collaborate on ...
-- 📫 How to reach me ...
+# یکتا پخش | مدیریت موجودی و خروجی PDF
 
-<!---
-tekeam/tekeam is a ✨ special ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-You can click the Preview link to take a look at your changes.
---->
+این سرویس برای مدیریت محصولات و دریافت خروجی PDF فارسی با تم مشکی-طلایی طراحی شده است. اطلاعات در پوشه `backup` ذخیره می‌شود و تصاویر در پوشه `images` قرار می‌گیرد.
+
+## امکانات
+- افزودن دسته‌بندی و محصول با تصویر، توضیحات، قیمت همکار/مصرف‌کننده و تعداد در کارتن.
+- امکان فعال/غیرفعال کردن نمایش محصولات.
+- تولید خروجی PDF حرفه‌ای به زبان فارسی (A4 پرتره).
+- ذخیره تمام داده‌ها در پوشه `backup` برای بازیابی سریع.
+
+## راه‌اندازی
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python app.py
+```
+
+سرویس روی `http://localhost:5000` در دسترس است.
+
+## ساختار ذخیره‌سازی
+- `backup/data.json`: ذخیره اطلاعات دسته‌بندی و محصولات.
+- `images/`: ذخیره تصاویر محصولات.
+- `backup/*.pdf`: خروجی‌های PDF تولید شده.
+- `fonts/`: فونت فارسی مورد استفاده در خروجی PDF (در اولین اجرا دانلود می‌شود).
+
+## اطلاعات تماس
+یکتا پخش
+
+02191303284
+
+09134148952
+
+ثبت سفارش در ایتا| واتساپ
+
+شماره ثبت سفارش 09134148952
