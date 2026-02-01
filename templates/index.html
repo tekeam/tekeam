@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>یکتا پخش | مدیریت موجودی</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <h1>یکتا پخش</h1>
+        <p>{{ company_info.phone_1 }} - {{ company_info.phone_2 }}</p>
+        <p>{{ company_info.order_channels }}</p>
+        <p>{{ company_info.order_phone }}</p>
+      </div>
+      <div class="actions">
+        <a class="btn" href="{{ url_for('generate_pdf') }}">دریافت خروجی PDF</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <h2>افزودن دسته بندی جدید</h2>
+        <form method="post" action="{{ url_for('add_category') }}" class="form">
+          <input type="text" name="name" placeholder="نام دسته بندی" required />
+          <button type="submit" class="btn">ثبت دسته بندی</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>افزودن محصول جدید</h2>
+        <form method="post" action="{{ url_for('add_product') }}" enctype="multipart/form-data" class="form grid">
+          <input type="text" name="name" placeholder="نام محصول" required />
+          <select name="category_id" required>
+            <option value="">انتخاب دسته بندی</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+          </select>
+          <input type="text" name="price_partner" placeholder="قیمت همکار" />
+          <input type="text" name="price_retail" placeholder="قیمت مصرف کننده" />
+          <input type="text" name="carton_count" placeholder="تعداد در کارتن" />
+          <textarea name="description" placeholder="توضیحات محصول" rows="3"></textarea>
+          <input type="file" name="image" accept="image/*" />
+          <button type="submit" class="btn">ثبت محصول</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>لیست دسته بندی ها و محصولات</h2>
+        {% for category in categories %}
+        <div class="category">
+          <h3>{{ category.name }}</h3>
+          <div class="products">
+            {% for product in products_by_category.get(category.id, []) %}
+            <div class="product-card {% if not product.active %}inactive{% endif %}">
+              <div class="info">
+                <strong>{{ product.name }}</strong>
+                <p>{{ product.description }}</p>
+                <p>قیمت همکار: {{ product.price_partner or '-' }}</p>
+                <p>قیمت مصرف کننده: {{ product.price_retail or '-' }}</p>
+                <p>تعداد در کارتن: {{ product.carton_count or '-' }}</p>
+              </div>
+              <div class="meta">
+                {% if product.image %}
+                <img src="{{ url_for('serve_image', filename=product.image) }}" alt="{{ product.name }}" />
+                {% else %}
+                <div class="placeholder">بدون تصویر</div>
+                {% endif %}
+                <form method="post" action="{{ url_for('toggle_product', product_id=product.id) }}">
+                  <button type="submit" class="btn small">
+                    {% if product.active %}غیرفعال{% else %}فعال{% endif %}
+                  </button>
+                </form>
+              </div>
+            </div>
+            {% else %}
+            <p class="empty">محصولی ثبت نشده است.</p>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </section>
+    </main>
+  </body>
+</html>
