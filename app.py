@@ -51,6 +51,7 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
 
 FONT_CANDIDATES = [
     str(FONTS_DIR / "Vazirmatn-Regular.ttf"),
+    str(FONTS_DIR / "Vazirmatn-Bold.ttf"),
     "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
     "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -58,6 +59,7 @@ FONT_CANDIDATES = [
 
 FONT_DOWNLOADS = {
     "Vazirmatn-Regular.ttf": "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/ttf/Vazirmatn-Regular.ttf",
+    "Vazirmatn-Bold.ttf": "https://github.com/rastikerdar/vazirmatn/raw/master/fonts/ttf/Vazirmatn-Bold.ttf",
 }
 
 
@@ -100,13 +102,25 @@ def ensure_fonts() -> None:
                 continue
 
 
-def register_font() -> str:
+def register_font() -> tuple[str, str]:
     ensure_fonts()
+    regular = None
+    bold = None
     for candidate in FONT_CANDIDATES:
         if os.path.exists(candidate):
-            pdfmetrics.registerFont(TTFont("Persian", candidate))
-            return "Persian"
-    return "Helvetica"
+            if "Bold" in candidate and bold is None:
+                bold = candidate
+            elif regular is None:
+                regular = candidate
+    if regular:
+        pdfmetrics.registerFont(TTFont("Persian", regular))
+    if bold:
+        pdfmetrics.registerFont(TTFont("PersianBold", bold))
+    if regular and bold:
+        return "Persian", "PersianBold"
+    if regular:
+        return "Persian", "Persian"
+    return "Helvetica", "Helvetica-Bold"
 
 
 @app.route("/")
@@ -208,15 +222,15 @@ def build_pdf(filepath: Path) -> None:
     for product in products:
         products_by_category.setdefault(product["category_id"], []).append(product)
 
-    font_name = register_font()
+    font_body, font_heading = register_font()
     styles = getSampleStyleSheet()
     styles.add(
         ParagraphStyle(
             name="PersianHeading",
             parent=styles["Heading1"],
             alignment=TA_RIGHT,
-            fontName=font_name,
-            fontSize=16,
+            fontName=font_heading,
+            fontSize=18,
             textColor=THEME["gold"],
             spaceAfter=6,
             wordWrap="RTL",
@@ -227,9 +241,9 @@ def build_pdf(filepath: Path) -> None:
             name="PersianBody",
             parent=styles["BodyText"],
             alignment=TA_RIGHT,
-            fontName=font_name,
-            fontSize=10,
-            leading=14,
+            fontName=font_body,
+            fontSize=10.5,
+            leading=15,
             textColor=THEME["white"],
             wordWrap="RTL",
         )
@@ -239,10 +253,23 @@ def build_pdf(filepath: Path) -> None:
             name="PersianSmall",
             parent=styles["BodyText"],
             alignment=TA_RIGHT,
-            fontName=font_name,
-            fontSize=9,
-            leading=12,
+            fontName=font_body,
+            fontSize=9.5,
+            leading=13,
             textColor=THEME["gold_light"],
+            wordWrap="RTL",
+        )
+    )
+    styles.add(
+        ParagraphStyle(
+            name="PersianSection",
+            parent=styles["Heading2"],
+            alignment=TA_RIGHT,
+            fontName=font_heading,
+            fontSize=13,
+            textColor=THEME["gold_light"],
+            spaceBefore=6,
+            spaceAfter=4,
             wordWrap="RTL",
         )
     )
@@ -275,10 +302,12 @@ def build_pdf(filepath: Path) -> None:
     info_text = "<br/>".join(reshape_text(line) for line in info_lines)
     story.append(Paragraph(info_text, styles["PersianSmall"]))
     story.append(Spacer(1, 12))
+    story.append(Paragraph(reshape_text("به‌روزرسانی موجودی بر اساس آخرین ثبت سیستم"), styles["PersianSmall"]))
+    story.append(Spacer(1, 14))
 
     for category in categories:
         category_name = reshape_text(category["name"])
-        story.append(Paragraph(category_name, styles["PersianHeading"]))
+        story.append(Paragraph(category_name, styles["PersianSection"]))
         products = products_by_category.get(category["id"], [])
         if not products:
             story.append(Paragraph(reshape_text("محصولی ثبت نشده است."), styles["PersianSmall"]))
@@ -315,6 +344,7 @@ def build_pdf(filepath: Path) -> None:
                         ("TEXTCOLOR", (0, 0), (-1, -1), THEME["white"]),
                         ("GRID", (0, 0), (-1, -1), 0.3, THEME["gold"]),
                         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111111")),
+                        ("LINEBELOW", (0, 0), (-1, -1), 0.5, THEME["gold_light"]),
                         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
                         ("LEFTPADDING", (0, 0), (-1, -1), 6),
                         ("TOPPADDING", (0, 0), (-1, -1), 6),
