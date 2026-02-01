@@ -16,11 +16,43 @@
       </div>
       <div class="actions">
         <a class="btn" href="{{ url_for('generate_pdf') }}">دریافت خروجی PDF</a>
+        <button class="btn ghost" type="button" id="scroll-to-forms">افزودن سریع</button>
       </div>
     </header>
 
+    <section class="toolbar">
+      <div class="stats">
+        <div class="stat-card">
+          <span class="label">تعداد دسته بندی</span>
+          <strong id="stat-categories">0</strong>
+        </div>
+        <div class="stat-card">
+          <span class="label">کل محصولات</span>
+          <strong id="stat-products">0</strong>
+        </div>
+        <div class="stat-card">
+          <span class="label">محصولات فعال</span>
+          <strong id="stat-active">0</strong>
+        </div>
+      </div>
+      <div class="filters">
+        <label class="field">
+          <span>جستجو</span>
+          <input type="text" id="product-search" placeholder="جستجو در نام و توضیحات" />
+        </label>
+        <label class="field">
+          <span>فیلتر وضعیت</span>
+          <select id="product-status">
+            <option value="all">همه</option>
+            <option value="active">فعال</option>
+            <option value="inactive">غیرفعال</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
     <main>
-      <section class="panel form-panel">
+      <section class="panel form-panel" id="forms">
         <div class="panel-header">
           <h2>افزودن دسته بندی جدید</h2>
           <p>ابتدا دسته‌بندی‌ها را تعریف کنید تا محصولات به ترتیب زیر هم قرار بگیرند.</p>
@@ -80,7 +112,7 @@
       <section class="panel">
         <h2>لیست دسته بندی ها و محصولات</h2>
         {% for category in categories %}
-        <div class="category">
+        <div class="category" data-category-id="{{ category.id }}">
           <div class="category-header">
             <h3>{{ category.name }}</h3>
             <form method="post" action="{{ url_for('delete_category', category_id=category.id) }}">
@@ -89,7 +121,12 @@
           </div>
           <div class="products">
             {% for product in products_by_category.get(category.id, []) %}
-            <div class="product-card {% if not product.active %}inactive{% endif %}">
+            <div
+              class="product-card {% if not product.active %}inactive{% endif %}"
+              data-name="{{ product.name }}"
+              data-description="{{ product.description }}"
+              data-active="{{ 'active' if product.active else 'inactive' }}"
+            >
               <div class="info">
                 <strong>{{ product.name }}</strong>
                 <p>{{ product.description }}</p>
@@ -118,5 +155,6 @@
         {% endfor %}
       </section>
     </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
   </body>
 </html>

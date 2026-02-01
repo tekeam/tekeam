@@ -10,6 +10,7 @@ from reportlab.lib.enums import TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -287,6 +288,11 @@ def build_pdf(filepath: Path) -> None:
         canvas.saveState()
         canvas.setFillColor(THEME["black"])
         canvas.rect(0, 0, A4[0], A4[1], fill=1, stroke=0)
+        canvas.setFillColor(THEME["gold_light"])
+        canvas.setFont(font_body, 8)
+        timestamp = datetime.now().strftime("%Y/%m/%d %H:%M")
+        footer_text = reshape_text(f"صفحه {_doc.page} | به‌روزرسانی: {timestamp}")
+        canvas.drawRightString(A4[0] - 1.5 * cm, 1.1 * cm, footer_text)
         canvas.restoreState()
 
     story = []
@@ -305,6 +311,16 @@ def build_pdf(filepath: Path) -> None:
     story.append(Paragraph(reshape_text("به‌روزرسانی موجودی بر اساس آخرین ثبت سیستم"), styles["PersianSmall"]))
     story.append(Spacer(1, 14))
 
+    def build_image_flowable(image_path: Path) -> Image | Paragraph:
+        if not image_path.exists():
+            return Paragraph(reshape_text("تصویر نامعتبر"), styles["PersianSmall"])
+        try:
+            image_reader = ImageReader(str(image_path))
+            image_reader.getSize()
+            return Image(str(image_path), width=2.8 * cm, height=2.8 * cm)
+        except OSError:
+            return Paragraph(reshape_text("تصویر نامعتبر"), styles["PersianSmall"])
+
     for category in categories:
         category_name = reshape_text(category["name"])
         story.append(Paragraph(category_name, styles["PersianSection"]))
@@ -317,8 +333,8 @@ def build_pdf(filepath: Path) -> None:
         for product in products:
             image_path = IMAGES_DIR / product["image"] if product.get("image") else None
             image_flowable = ""
-            if image_path and image_path.exists():
-                image_flowable = Image(str(image_path), width=2.6 * cm, height=2.6 * cm)
+            if image_path:
+                image_flowable = build_image_flowable(image_path)
             name = reshape_text(product["name"])
             description = reshape_text(product.get("description", ""))
             description_line = f"<br/>{description}" if description else ""
@@ -331,9 +347,15 @@ def build_pdf(filepath: Path) -> None:
             carton_count = reshape_text(f"تعداد در کارتن: {product.get('carton_count', '-')}")
             carton_paragraph = Paragraph(carton_count, styles["PersianSmall"])
 
+            header_row = [
+                Paragraph(reshape_text("تصویر"), styles["PersianSmall"]),
+                Paragraph(reshape_text("شرح محصول"), styles["PersianSmall"]),
+                Paragraph(reshape_text("قیمت‌ها"), styles["PersianSmall"]),
+                Paragraph(reshape_text("کارتن"), styles["PersianSmall"]),
+            ]
             row = [[image_flowable, name_paragraph, price_paragraph, carton_paragraph]]
             table = Table(
-                row,
+                [header_row] + row,
                 colWidths=[3 * cm, 7.5 * cm, 4 * cm, 3 * cm],
                 hAlign="RIGHT",
             )
@@ -344,6 +366,8 @@ def build_pdf(filepath: Path) -> None:
                         ("TEXTCOLOR", (0, 0), (-1, -1), THEME["white"]),
                         ("GRID", (0, 0), (-1, -1), 0.3, THEME["gold"]),
                         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#111111")),
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1b1b1b")),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), THEME["gold_light"]),
                         ("LINEBELOW", (0, 0), (-1, -1), 0.5, THEME["gold_light"]),
                         ("RIGHTPADDING", (0, 0), (-1, -1), 6),
                         ("LEFTPADDING", (0, 0), (-1, -1), 6),
